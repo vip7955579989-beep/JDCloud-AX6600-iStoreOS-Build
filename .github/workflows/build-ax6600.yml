@@ -29,10 +29,12 @@ jobs:
           sudo -E apt-get -qq install -y build-essential clang flex bison gawk gettext git libncurses5-dev libssl-dev python3-distutils python3-pyelftools rsync unzip zlib1g-dev squashfs-tools device-tree-compiler swig python3-dev python3-setuptools
           sudo -E apt-get -qq clean
 
-      - name: 3. 拉取 iStoreOS 官方最新源码 (支持 IPQ60xx / 雅典娜 AX6600)
+      - name: 3. 拉取高通 IPQ6018 / 雅典娜 AX6600 专属 OpenWrt 源码与 iStore 商店
         run: |
-          git clone --depth 1 https://github.com/istoreos/istoreos.git -b main openwrt || git clone --depth 1 https://github.com/istoreos/istoreos.git -b istoreos-24.12 openwrt
+          git clone --depth 1 https://github.com/immortalwrt/immortalwrt.git -b openwrt-24.10 openwrt || git clone --depth 1 https://github.com/coolsnowwolf/lede.git openwrt
           cd openwrt
+          echo "src-git istore https://github.com/linkease/istore-ui.git" >> feeds.conf.default
+          echo "src-git linkease https://github.com/linkease/istore.git" >> feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
@@ -52,15 +54,14 @@ jobs:
           echo "exit 0" >> files/etc/uci-defaults/99-custom-ax6600
           chmod +x files/etc/uci-defaults/99-custom-ax6600
 
-      - name: 5. 配置文件生成与下载依赖包
+      - name: 5. 生成 AX6600 专属 qualcommax 配置文件与下载依赖包
         run: |
           cd openwrt
-          # 自动匹配 qualcommax / ipq60xx 目标平台下的 jdcloud_ax6600
           echo "CONFIG_TARGET_qualcommax=y" > .config
           echo "CONFIG_TARGET_qualcommax_ipq60xx=y" >> .config
           echo "CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdcloud_ax6600=y" >> .config
           
-          # 核心硬件与无线驱动
+          # 核心硬件与 Wi-Fi 6 NSS 驱动
           echo "CONFIG_PACKAGE_kmod-ath11k=y" >> .config
           echo "CONFIG_PACKAGE_kmod-ath11k-pci=y" >> .config
           echo "CONFIG_PACKAGE_ath11k-firmware-ipq6018=y" >> .config
@@ -98,10 +99,11 @@ jobs:
           echo -e "$(nproc) thread compile"
           make -j$(nproc) || make -j1 V=s
 
-      - name: 7. 归档整理雅典娜 AX6600 固件发布目录
+      - name: 7. 精准提取雅典娜 AX6600 固件发布目录
         run: |
           mkdir -p bin_out
-          find openwrt/bin/targets/ -type f \( -name "*.bin" -o -name "*.tar.gz" -o -name "*.manifest" -o -name "*.buildinfo" \) -exec cp -f {} bin_out/ \; 2>/dev/null || true
+          # 强制指定只能提取带有 jdcloud_ax6600 或 qualcommax 关键字的真正的雅典娜固件
+          find openwrt/bin/targets/ -type f \( -name "*jdcloud_ax6600*" -o -name "*ipq60xx*" -o -name "*qualcommax*" \) -exec cp -f {} bin_out/ \; 2>/dev/null || true
           touch bin_out/BUILD_COMPLETE.txt
 
       - name: 8. 上传京东云雅典娜 AX6600 Release 固件产物 (Artifacts)
