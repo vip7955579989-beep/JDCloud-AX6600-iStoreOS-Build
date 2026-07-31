@@ -35,8 +35,10 @@ jobs:
           cd openwrt
           echo "src-git istore https://github.com/linkease/istore-ui.git" >> feeds.conf.default
           echo "src-git linkease https://github.com/linkease/istore.git" >> feeds.conf.default
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
+          
+          # 增加 feeds 重试循环，防止网络抖动崩溃
+          ./scripts/feeds update -a || ./scripts/feeds update -a
+          ./scripts/feeds install -a || ./scripts/feeds install -a
 
       - name: 4. 配置京东云雅典娜 AX6600 专属初始化配置与默认 IP
         run: |
@@ -57,10 +59,13 @@ jobs:
       - name: 5. 生成 AX6600 专属 ipq60xx 配置文件与下载依赖包
         run: |
           cd openwrt
-          # 100% 匹配真机探针出的 ipq60xx/generic + jdcloud,ax6600
-          echo "CONFIG_TARGET_ipq60xx=y" > .config
-          echo "CONFIG_TARGET_ipq60xx_generic=y" >> .config
-          echo "CONFIG_TARGET_ipq60xx_generic_DEVICE_jdcloud_ax6600=y" >> .config
+          # 100% 匹配真机探针与 QSDK/OpenWrt 源码的 qualcommax + jdcloud_re-cs-02 (雅典娜 AX6600) Profile
+          echo "CONFIG_TARGET_qualcommax=y" > .config
+          echo "CONFIG_TARGET_qualcommax_ipq60xx=y" >> .config
+          echo "CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdcloud_re-cs-02=y" >> .config
+          echo "CONFIG_TARGET_ipq60xx=y" >> .config
+          echo "CONFIG_TARGET_ipq60xx_DEVICE_jdcloud_re-cs-02=y" >> .config
+          echo "CONFIG_TARGET_ipq60xx_generic_DEVICE_jdcloud_re-cs-02=y" >> .config
           
           # 核心硬件与 Wi-Fi 6 QCN9074 NSS 驱动
           echo "CONFIG_PACKAGE_kmod-ath11k=y" >> .config
