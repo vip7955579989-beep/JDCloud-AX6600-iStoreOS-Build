@@ -14,6 +14,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     steps:
       - name: 1. 检出编译配置库
         uses: actions/checkout@v4
@@ -111,8 +113,8 @@ jobs:
       - name: 9. 自动发布固件到 GitHub Release 发行版
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v24.12-AX6600-${{ github.run_number }}
-          name: 京东云雅典娜 AX6600 iStoreOS 最新固件 Release v24.12-${{ github.run_number }}
+          tag_name: v24.12-AX6600-${{ github.run_id }}
+          name: 京东云雅典娜 AX6600 iStoreOS 最新固件 Release v24.12-${{ github.run_id }}
           body: |
             🎉 京东云无线宝 雅典娜 AX6600 (Qualcomm IPQ6018 + QCN9074) 专属 iStoreOS 固件自动编译发布完成！
             
