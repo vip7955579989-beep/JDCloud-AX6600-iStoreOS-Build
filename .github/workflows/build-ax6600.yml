@@ -11,6 +11,11 @@ on:
     branches:
       - main
 
+# 自动取消旧的正在运行的构建，释放云端算力
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-22.04
