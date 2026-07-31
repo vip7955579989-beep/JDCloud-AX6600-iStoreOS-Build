@@ -111,8 +111,14 @@ jobs:
           echo -e "$(nproc) thread compile"
           make -j$(nproc) || make -j1 V=s
 
-      - name: 8. 上传京东云雅典娜 AX6600 Release 固件产物
-        uses: actions/upload-artifact@v3
+      - name: 8. 归档整理雅典娜 AX6600 固件发布目录
+        run: |
+          mkdir -p bin_out
+          cp -f openwrt/bin/targets/qualcommax/ipq60xx/* bin_out/ 2>/dev/null || true
+          rm -rf bin_out/packages 2>/dev/null || true
+
+      - name: 9. 上传京东云雅典娜 AX6600 Release 固件产物
+        uses: actions/upload-artifact@v4
         with:
           name: iStoreOS-JDCloud-AX6600-Firmware
-          path: openwrt/bin/targets/
+          path: bin_out/
