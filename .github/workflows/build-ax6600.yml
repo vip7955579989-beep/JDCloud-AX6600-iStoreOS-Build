@@ -112,11 +112,7 @@ jobs:
           make -j$(nproc) || make -j1 V=s
 
       - name: 8. 上传京东云雅典娜 AX6600 Release 固件产物
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: iStoreOS-JDCloud-AX6600-Firmware
-          path: |
-            openwrt/bin/targets/qualcommax/ipq60xx/*factory.bin
-            openwrt/bin/targets/qualcommax/ipq60xx/*sysupgrade.bin
-            openwrt/bin/targets/ipq60xx/generic/*factory.bin
-            openwrt/bin/targets/ipq60xx/generic/*sysupgrade.bin
+          path: openwrt/bin/targets/
