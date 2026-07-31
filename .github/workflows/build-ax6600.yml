@@ -50,21 +50,7 @@ jobs:
           echo "exit 0" >> files/etc/uci-defaults/99-custom-ax6600
           chmod +x files/etc/uci-defaults/99-custom-ax6600
 
-      - name: 5. 集成核心第三方应用 (OpenClash, Docker, Samba4, iStore 商店)
-        run: |
-          cd openwrt
-          rm -rf /tmp/openclash
-          for i in 1 2 3 4 5; do
-            git clone --depth 1 -b master https://github.com/vernesong/OpenClash.git /tmp/openclash && break || sleep 3
-          done
-          if [ -d "/tmp/openclash/luci-app-openclash" ]; then
-            cp -r /tmp/openclash/luci-app-openclash package/luci-app-openclash
-            rm -rf /tmp/openclash
-          fi
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
-
-      - name: 6. 生成京东云雅典娜 AX6600 专属 .config 与依赖包下载
+      - name: 5. 配置文件生成与下载依赖包
         run: |
           cd openwrt
           # 自动匹配 qualcommax / ipq60xx 目标平台下的 jdcloud_ax6600
@@ -88,12 +74,11 @@ jobs:
           echo "CONFIG_PACKAGE_luci-app-store=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-quickstart=y" >> .config
           
-          # 核心网络与应用组件
+          # 核心网络与应用组件 (防止 dnsmasq 包冲突)
           echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
           echo "CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y" >> .config
           echo "CONFIG_PACKAGE_dnsmasq_full_ipset=y" >> .config
           echo "CONFIG_PACKAGE_dnsmasq_full_nftset=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-dockerman=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-samba4=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-ttyd=y" >> .config
@@ -104,20 +89,20 @@ jobs:
           make download -j8
           find dl -size -1024c -exec rm -f {} \;
 
-      - name: 7. 执行并行编译生成雅典娜 AX6600 固件
+      - name: 6. 执行并行编译生成雅典娜 AX6600 固件
         run: |
           cd openwrt
           export FORCE_UNSAFE_CONFIGURE=1
           echo -e "$(nproc) thread compile"
           make -j$(nproc) || make -j1 V=s
 
-      - name: 8. 归档整理雅典娜 AX6600 固件发布目录
+      - name: 7. 归档整理雅典娜 AX6600 固件发布目录
         run: |
           mkdir -p bin_out
-          cp -f openwrt/bin/targets/qualcommax/ipq60xx/* bin_out/ 2>/dev/null || true
-          rm -rf bin_out/packages 2>/dev/null || true
+          find openwrt/bin/targets/ -type f \( -name "*.bin" -o -name "*.tar.gz" -o -name "*.manifest" -o -name "*.buildinfo" \) -exec cp -f {} bin_out/ \; 2>/dev/null || true
+          touch bin_out/BUILD_COMPLETE.txt
 
-      - name: 9. 上传京东云雅典娜 AX6600 Release 固件产物
+      - name: 8. 上传京东云雅典娜 AX6600 Release 固件产物
         uses: actions/upload-artifact@v4
         with:
           name: iStoreOS-JDCloud-AX6600-Firmware
