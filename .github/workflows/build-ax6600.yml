@@ -102,8 +102,20 @@ jobs:
           find openwrt/bin/targets/ -type f \( -name "*.bin" -o -name "*.tar.gz" -o -name "*.manifest" -o -name "*.buildinfo" \) -exec cp -f {} bin_out/ \; 2>/dev/null || true
           touch bin_out/BUILD_COMPLETE.txt
 
-      - name: 8. 上传京东云雅典娜 AX6600 Release 固件产物
+      - name: 8. 上传京东云雅典娜 AX6600 Release 固件产物 (Artifacts)
         uses: actions/upload-artifact@v4
         with:
           name: iStoreOS-JDCloud-AX6600-Firmware
           path: bin_out/
+
+      - name: 9. 自动发布固件到 GitHub Release 发行版
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v24.12-AX6600-${{ github.run_number }}
+          name: 京东云雅典娜 AX6600 iStoreOS 最新固件 Release v24.12-${{ github.run_number }}
+          body: |
+            🎉 京东云无线宝 雅典娜 AX6600 (Qualcomm IPQ6018 + QCN9074) 专属 iStoreOS 固件自动编译发布完成！
+            
+            - 适配硬件：高通 IPQ6018 + QCN9074 (三频 Wi-Fi 6)
+            - 刷机指引：在不死 U-Boot 中上传带 factory 关键字的固件刷入即可。
+          files: bin_out/*
