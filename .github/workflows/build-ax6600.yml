@@ -40,6 +40,8 @@ jobs:
           cd openwrt
           echo "src-git istore https://github.com/linkease/istore-ui.git" >> feeds.conf.default
           echo "src-git linkease https://github.com/linkease/istore.git" >> feeds.conf.default
+          echo "src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages.git;main" >> feeds.conf.default
+          echo "src-git passwall https://github.com/xiaorouji/openwrt-passwall.git;main" >> feeds.conf.default
           
           # 增加 feeds 重试循环，防止网络抖动崩溃
           ./scripts/feeds update -a || ./scripts/feeds update -a
@@ -87,6 +89,15 @@ jobs:
           # iStore 商店与核心 UI
           echo "CONFIG_PACKAGE_luci-app-store=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-quickstart=y" >> .config
+          
+          # PassWall 及其依赖组件 (Xray, Sing-Box, ChinaDNS-NG)
+          echo "CONFIG_PACKAGE_luci-app-passwall=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-passwall-zh-cn=y" >> .config
+          echo "CONFIG_PACKAGE_xray-core=y" >> .config
+          echo "CONFIG_PACKAGE_sing-box=y" >> .config
+          echo "CONFIG_PACKAGE_chinadns-ng=y" >> .config
+          echo "CONFIG_PACKAGE_ipt2socks=y" >> .config
+          echo "CONFIG_PACKAGE_microsocks=y" >> .config
           
           # 核心网络与应用组件
           echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
