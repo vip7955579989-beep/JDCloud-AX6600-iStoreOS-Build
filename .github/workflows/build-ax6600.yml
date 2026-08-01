@@ -63,16 +63,13 @@ jobs:
           echo "exit 0" >> files/etc/uci-defaults/99-custom-ax6600
           chmod +x files/etc/uci-defaults/99-custom-ax6600
 
-      - name: 5. 生成 AX6600 专属 ipq60xx 配置文件与下载依赖包
+      - name: 5. 生成 AX6600 专属 qualcommax 配置文件与下载依赖包
         run: |
           cd openwrt
           # 100% 匹配真机探针与 QSDK/OpenWrt 源码的 qualcommax + jdcloud_re-cs-02 (雅典娜 AX6600) Profile
           echo "CONFIG_TARGET_qualcommax=y" > .config
           echo "CONFIG_TARGET_qualcommax_ipq60xx=y" >> .config
           echo "CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdcloud_re-cs-02=y" >> .config
-          echo "CONFIG_TARGET_ipq60xx=y" >> .config
-          echo "CONFIG_TARGET_ipq60xx_DEVICE_jdcloud_re-cs-02=y" >> .config
-          echo "CONFIG_TARGET_ipq60xx_generic_DEVICE_jdcloud_re-cs-02=y" >> .config
           
           # 核心硬件与 Wi-Fi 6 QCN9074 NSS 驱动
           echo "CONFIG_PACKAGE_kmod-ath11k=y" >> .config
@@ -98,12 +95,6 @@ jobs:
           echo "CONFIG_PACKAGE_chinadns-ng=y" >> .config
           echo "CONFIG_PACKAGE_ipt2socks=y" >> .config
           echo "CONFIG_PACKAGE_microsocks=y" >> .config
-          
-          # 核心网络与应用组件
-          echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
-          echo "CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y" >> .config
-          echo "CONFIG_PACKAGE_dnsmasq_full_ipset=y" >> .config
-          echo "CONFIG_PACKAGE_dnsmasq_full_nftset=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-dockerman=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-samba4=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-ttyd=y" >> .config
@@ -119,7 +110,12 @@ jobs:
           cd openwrt
           export FORCE_UNSAFE_CONFIGURE=1
           echo -e "$(nproc) thread compile"
-          make -j$(nproc) || make -j1 V=s
+          if ! make -j$(nproc); then
+            echo "=================================================="
+            echo "多线程编译失败，正在切换单线程提取最精准报错日志..."
+            echo "=================================================="
+            make -j1 V=s | tee build_err.log || (tail -n 250 build_err.log && false)
+          fi
 
       - name: 7. 归档整理雅典娜 AX6600 固件发布目录
         run: |
