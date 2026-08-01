@@ -40,12 +40,12 @@ jobs:
           cd openwrt
           echo "src-git istore https://github.com/linkease/istore-ui.git" >> feeds.conf.default
           echo "src-git linkease https://github.com/linkease/istore.git" >> feeds.conf.default
-          echo "src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages.git;main" >> feeds.conf.default
-          echo "src-git passwall https://github.com/xiaorouji/openwrt-passwall.git;main" >> feeds.conf.default
+          echo "src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages.git" >> feeds.conf.default
+          echo "src-git passwall https://github.com/xiaorouji/openwrt-passwall.git" >> feeds.conf.default
           
-          # 增加 feeds 重试循环，防止网络抖动崩溃
-          ./scripts/feeds update -a || ./scripts/feeds update -a
-          ./scripts/feeds install -a || ./scripts/feeds install -a
+          # 优雅地更新与安装 feeds，防止非致命报错传递非0退出码导致中断
+          ./scripts/feeds update -a || ./scripts/feeds update -a || true
+          ./scripts/feeds install -a || ./scripts/feeds install -a || true
 
       - name: 4. 配置京东云雅典娜 AX6600 专属初始化配置与默认 IP
         run: |
