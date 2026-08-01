@@ -36,7 +36,7 @@ jobs:
 
       - name: 3. 拉取高通 IPQ60xx (QSDK 12.5) 专属 OpenWrt 源码与 iStore 商店
         run: |
-          git clone --depth 1 https://github.com/coolsnowwolf/lede.git openwrt || git clone --depth 1 https://github.com/immortalwrt/immortalwrt.git -b openwrt-21.02 openwrt
+          git clone --depth 1 https://github.com/immortalwrt/immortalwrt.git -b openwrt-21.02 openwrt || git clone --depth 1 https://github.com/immortalwrt/immortalwrt.git openwrt
           cd openwrt
           echo "src-git istore https://github.com/linkease/istore-ui.git" >> feeds.conf.default
           echo "src-git linkease https://github.com/linkease/istore.git" >> feeds.conf.default
@@ -124,7 +124,7 @@ jobs:
       - name: 7. 归档整理雅典娜 AX6600 固件发布目录
         run: |
           mkdir -p bin_out
-          find openwrt/bin/targets/ipq60xx/generic/ -type f \( -name "*jdcloud_ax6600*" -o -name "*factory*" -o -name "*.bin" -o -name "*.ubi" \) -exec cp -f {} bin_out/ \; 2>/dev/null || true
+          find openwrt/bin/targets/ -type f \( -name "*ax6600*" -o -name "*ipq60xx*" -o -name "*factory*" -o -name "*.bin" -o -name "*.ubi" -o -name "*.tar.gz" \) -exec cp -f {} bin_out/ \; 2>/dev/null || true
           touch bin_out/BUILD_COMPLETE.txt
 
       - name: 8. 上传京东云雅典娜 AX6600 Release 固件产物 (Artifacts)
@@ -135,6 +135,8 @@ jobs:
 
       - name: 9. 自动发布固件到 GitHub Release 发行版
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v24.12-AX6600-${{ github.run_id }}
           name: 京东云雅典娜 AX6600 iStoreOS 最新固件 Release v24.12-${{ github.run_id }}
