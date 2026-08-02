@@ -136,9 +136,10 @@ jobs:
         with:
           tag_name: v24.12-AX6600-${{ github.run_id }}
           name: 京东云雅典娜 AX6600 iStoreOS 最新固件 Release v24.12-${{ github.run_id }}
+          fail_on_unmatched_files: false
           body: |
             🎉 京东云无线宝 雅典娜 AX6600 (Qualcomm IPQ6018 + QCN9074) 专属 iStoreOS 固件自动编译发布完成！
             
             - 适配硬件：高通 IPQ6018 + QCN9074 (三频 Wi-Fi 6)
             - 刷机指引：在不死 U-Boot 中上传带 factory 关键字的固件刷入即可。
-          files: bin_out/*
+          files: ./bin_out/*
