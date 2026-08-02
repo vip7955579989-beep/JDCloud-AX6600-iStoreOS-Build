@@ -120,8 +120,8 @@ jobs:
       - name: 7. 归档整理雅典娜 AX6600 固件发布目录
         run: |
           mkdir -p bin_out
-          find openwrt/bin/targets/ -type f \( -name "*ax6600*" -o -name "*ipq60xx*" -o -name "*factory*" -o -name "*.bin" -o -name "*.ubi" -o -name "*.tar.gz" \) -exec cp -f {} bin_out/ \; 2>/dev/null || true
-          touch bin_out/BUILD_COMPLETE.txt
+          find openwrt/bin/targets/ -type f \( -name "*.bin" -o -name "*.ubi" -o -name "*.tar.gz" -o -name "*.manifest" \) -exec cp -fv {} bin_out/ \;
+          ls -la bin_out/
 
       - name: 8. 上传京东云雅典娜 AX6600 Release 固件产物 (Artifacts)
         uses: actions/upload-artifact@v4
