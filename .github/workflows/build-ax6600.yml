@@ -120,8 +120,9 @@ jobs:
       - name: 7. 归档整理雅典娜 AX6600 固件发布目录
         run: |
           mkdir -p bin_out
-          cp -fv openwrt/bin/targets/qualcommax/ipq60xx/* bin_out/ 2>/dev/null || true
           find openwrt/bin/ -type f \( -name "*.bin" -o -name "*.ubi" -o -name "*.tar.gz" -o -name "*.manifest" -o -name "*.img*" \) -exec cp -fv {} bin_out/ \; 2>/dev/null || true
+          echo "Build finished at $(date)" > bin_out/BUILD_COMPLETE.txt
+          echo "=== bin_out Contents ==="
           ls -la bin_out/
 
       - name: 8. 上传京东云雅典娜 AX6600 Release 固件产物 (Artifacts)
@@ -143,4 +144,6 @@ jobs:
             
             - 适配硬件：高通 IPQ6018 + QCN9074 (三频 Wi-Fi 6)
             - 刷机指引：在不死 U-Boot 中上传带 factory 关键字的固件刷入即可。
-          files: ./bin_out/*
+          files: bin_out/*
+          overwrite: true
+          make_latest: true
