@@ -1,4 +1,4 @@
-name: 编译 京东云雅典娜 AX6600 专属最新 iStoreOS 固件 (开启BTF)
+name: 编译 京东云雅典娜 AX6600 专属最新 iStoreOS 固件 (BTF+LED点阵屏+PassWall+OpenClash+Argon主题)
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
       lan_ip:
         description: '默认 LAN 口 IP 地址'
         required: true
-        default: '192.168.1.1'
+        default: '192.168.10.1'
   push:
     branches:
       - main
@@ -31,59 +31,76 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost /etc/apt/sources.list.d/*
           sudo -E apt-get -qq update
-          # 关键增加 dwarves 依赖包以支持 BTF pahole 生成
-          sudo -E apt-get -qq install -y build-essential clang flex bison gawk gettext git libncurses5-dev libssl-dev python3-distutils python3-pyelftools rsync unzip zlib1g-dev squashfs-tools device-tree-compiler swig python3-dev python3-setuptools dwarves libcap-dev
+          # 增加 dwarves (pahole) 及 eBPF 编译依赖包
+          sudo -E apt-get -qq install -y build-essential clang flex bison gawk gettext git libncurses5-dev libssl-dev python3-distutils python3-pyelftools rsync unzip zlib1g-dev squashfs-tools device-tree-compiler swig python3-dev python3-setuptools dwarves libcap-dev libelf-dev
           sudo -E apt-get -qq clean
 
-      - name: 3. 拉取高通 IPQ60xx (QSDK 12.5) 专属 OpenWrt 源码与 iStore 商店
+      - name: 3. 拉取高通 qualcommax 专属 OpenWrt/ImmortalWrt 源码与 iStore、LED 点阵屏驱动及第三方插件
         run: |
-          git clone --depth 1 https://github.com/immortalwrt/immortalwrt.git -b openwrt-21.02 openwrt || git clone --depth 1 https://github.com/immortalwrt/immortalwrt.git openwrt
+          # 注意：qualcommax 平台需要使用 master 主线分支
+          git clone --depth 1 https://github.com/immortalwrt/immortalwrt.git -b master openwrt
           cd openwrt
-          echo "src-git istore https://github.com/linkease/istore-ui.git" >> feeds.conf.default
-          echo "src-git linkease https://github.com/linkease/istore.git" >> feeds.conf.default
+          echo "src-git istore https://github.com/linkease/istore.git" >> feeds.conf.default
           echo "src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages.git" >> feeds.conf.default
           echo "src-git passwall https://github.com/xiaorouji/openwrt-passwall.git" >> feeds.conf.default
           
-          # 优雅地更新与安装 feeds，防止非致命报错传递非0退出码导致中断
-          ./scripts/feeds update -a || ./scripts/feeds update -a || true
-          ./scripts/feeds install -a || ./scripts/feeds install -a || true
+          # 克隆雅典娜 LED 点阵屏驱动组件
+          git clone --depth 1 https://github.com/NONGFAH/athena-led.git package/athena-led || true
+          git clone --depth 1 https://github.com/NONGFAH/luci-app-athena-led.git package/luci-app-athena-led || true
+          
+          # 克隆 OpenClash 源码
+          git clone --depth 1 https://github.com/vernesong/OpenClash.git package/luci-app-openclash || true
+          
+          # 克隆 Argon 主题及配置插件
+          git clone --depth 1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon || true
+          git clone --depth 1 https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config || true
+          
+          # 更新与安装 feeds
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
 
-      - name: 4. 配置京东云雅典娜 AX6600 专属初始化配置与默认 IP
+      - name: 4. 配置京东云雅典娜 AX6600 专属初始化配置、默认 IP (192.168.10.1) 与登录密码
         run: |
           cd openwrt
           mkdir -p files/etc/uci-defaults/
           LAN_IP="${{ github.event.inputs.lan_ip }}"
-          [ -z "$LAN_IP" ] && LAN_IP="192.168.1.1"
+          [ -z "$LAN_IP" ] && LAN_IP="192.168.10.1"
           
-          echo "#!/bin/sh" > files/etc/uci-defaults/99-custom-ax6600
-          echo "uci set network.lan.ipaddr='${LAN_IP}'" >> files/etc/uci-defaults/99-custom-ax6600
-          echo "uci set system.@system[0].timezone='CST-8'" >> files/etc/uci-defaults/99-custom-ax6600
-          echo "uci set system.@system[0].zonename='Asia/Shanghai'" >> files/etc/uci-defaults/99-custom-ax6600
-          echo "uci commit network" >> files/etc/uci-defaults/99-custom-ax6600
-          echo "uci commit system" >> files/etc/uci-defaults/99-custom-ax6600
-          echo "exit 0" >> files/etc/uci-defaults/99-custom-ax6600
+          cat << 'EOF' > files/etc/uci-defaults/99-custom-ax6600
+          #!/bin/sh
+          uci set network.lan.ipaddr='192.168.10.1'
+          uci set system.@system[0].timezone='CST-8'
+          uci set system.@system[0].zonename='Asia/Shanghai'
+          uci set luci.main.mediaurlbase='/luci-static/argon'
+          uci commit network
+          uci commit system
+          uci commit luci
+          
+          # 设置默认登录密码为 HZ1314526.com
+          echo 'root:HZ1314526.com' | chpasswd
+          
+          exit 0
+          EOF
+          sed -i "s/192.168.10.1/${LAN_IP}/g" files/etc/uci-defaults/99-custom-ax6600
           chmod +x files/etc/uci-defaults/99-custom-ax6600
 
-      - name: 5. 生成 AX6600 专属 qualcommax 配置文件(含内核BTF)与下载依赖包
+      - name: 5. 生成 AX6600 专属 qualcommax 配置文件(含内核BTF、LED点阵屏、OpenClash及Argon主题)与下载依赖包
         run: |
           cd openwrt
           
-          # 写入架构配置
+          # 1. 写入 Target 目标架构 (qualcommax / ipq60xx / jdcloud_re-cs-02)
           echo "CONFIG_TARGET_qualcommax=y" > .config
           echo "CONFIG_TARGET_qualcommax_ipq60xx=y" >> .config
           echo "CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdcloud_re-cs-02=y" >> .config
           
-          # 禁用 x86 架构，防止误回退
-          echo "# CONFIG_TARGET_x86 is not set" >> .config
-          
-          # 强制开启内核 BTF 及 BPF 支持
-          echo "CONFIG_DEBUG_INFO=y" >> .config
-          echo "CONFIG_DEBUG_INFO_BTF=y" >> .config
-          echo "CONFIG_BPF=y" >> .config
-          echo "CONFIG_BPF_SYSCALL=y" >> .config
+          # 2. 强制开启内核 BTF & eBPF 支持
+          echo "CONFIG_KERNEL_DEBUG_INFO=y" >> .config
+          echo "CONFIG_KERNEL_DEBUG_INFO_BTF=y" >> .config
+          echo "CONFIG_KERNEL_DEBUG_INFO_BTF_MODULES=y" >> .config
+          echo "CONFIG_KERNEL_BPF_EVENTS=y" >> .config
           echo "CONFIG_PACKAGE_kmod-bpf=y" >> .config
 
-          # 核心硬件与 Wi-Fi 6 QCN9074 NSS 驱动
+          # 3. 硬件驱动、Wi-Fi 6 与雅典娜 LED 点阵屏控制驱动
           echo "CONFIG_PACKAGE_kmod-ath11k=y" >> .config
           echo "CONFIG_PACKAGE_kmod-ath11k-pci=y" >> .config
           echo "CONFIG_PACKAGE_ath11k-firmware-ipq6018=y" >> .config
@@ -95,24 +112,45 @@ jobs:
           echo "CONFIG_PACKAGE_kmod-fs-exfat=y" >> .config
           echo "CONFIG_PACKAGE_kmod-fs-ntfs3=y" >> .config
           
-          # iStore 商店与核心 UI
+          # 雅典娜 LED 点阵屏驱动及 Web 控制界面
+          echo "CONFIG_PACKAGE_athena-led=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-athena-led=y" >> .config
+          
+          # 4. iStore 商店与常用软件
           echo "CONFIG_PACKAGE_luci-app-store=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-quickstart=y" >> .config
           
-          # PassWall 及其依赖组件 (Xray, ChinaDNS-NG)
+          # Argon 主题与主题设置插件
+          echo "CONFIG_PACKAGE_luci-theme-argon=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-argon-config=y" >> .config
+          
+          # 5. 网络与代理组件 (使用 dnsmasq-full 替换普通 dnsmasq)
+          echo "# CONFIG_PACKAGE_dnsmasq is not set" >> .config
+          echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
+          
+          # PassWall 插件
           echo "CONFIG_PACKAGE_luci-app-passwall=y" >> .config
           echo "CONFIG_PACKAGE_luci-i18n-passwall-zh-cn=y" >> .config
           echo "CONFIG_PACKAGE_xray-core=y" >> .config
           echo "CONFIG_PACKAGE_chinadns-ng=y" >> .config
           echo "CONFIG_PACKAGE_ipt2socks=y" >> .config
           echo "CONFIG_PACKAGE_microsocks=y" >> .config
+          
+          # OpenClash 插件
+          echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
+          
+          # 其他实用工具
           echo "CONFIG_PACKAGE_luci-app-dockerman=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-samba4=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-ttyd=y" >> .config
           echo "CONFIG_PACKAGE_luci-app-diskman=y" >> .config
           
           make defconfig
-          sed -i 's/CONFIG_PACKAGE_dnsmasq=y/# CONFIG_PACKAGE_dnsmasq is not set/' .config
+          
+          # 打印验证当前生效的 Target
+          echo "=== 校验实际生效的 Target ==="
+          grep "CONFIG_TARGET_" .config | head -n 10
+          
           make download -j8
           find dl -size -1024c -exec rm -f {} \;
 
@@ -131,7 +169,7 @@ jobs:
       - name: 7. 归档整理雅典娜 AX6600 固件发布目录
         run: |
           mkdir -p bin_out
-          find openwrt/bin/ -type f \( -name "*.bin" -o -name "*.ubi" -o -name "*.tar.gz" -o -name "*.manifest" -o -name "*.img*" \) -exec cp -fv {} bin_out/ \; 2>/dev/null || true
+          find openwrt/bin/targets/qualcommax/ -type f \( -name "*.bin" -o -name "*.ubi" -o -name "*.tar.gz" -o -name "*.manifest" -o -name "*.img*" \) -exec cp -fv {} bin_out/ \; 2>/devnull || true
           echo "Build finished at $(date)" > bin_out/BUILD_COMPLETE.txt
           echo "=== bin_out Contents ==="
           ls -la bin_out/
@@ -153,8 +191,13 @@ jobs:
           body: |
             🎉 京东云无线宝 雅典娜 AX6600 (Qualcomm IPQ6018 + QCN9074) 专属 iStoreOS 固件自动编译发布完成！
             
+            - 默认后台地址：192.168.10.1
+            - 默认登录密码：HZ1314526.com
+            - 默认主题设置：Argon 主题 (含 Argon Config 管理设置)
             - 适配硬件：高通 IPQ6018 + QCN9074 (三频 Wi-Fi 6)
             - 内核功能：已开启内核 BTF & eBPF 支持
+            - 驱动支持：内置雅典娜前端 LED 点阵屏控制面板 (athena-led)
+            - 预装插件：iStore 商店、PassWall、OpenClash、Docker 等
             - 刷机指引：在不死 U-Boot 中上传带 factory 关键字的固件刷入即可。
           files: bin_out/*
           make_latest: true
